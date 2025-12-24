@@ -1,3 +1,7 @@
+# custom
+lyrics_db/
+songs*.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
