@@ -62,65 +62,63 @@ def create_collections(client: chromadb.PersistentClient,
     return songs_collection, sections_collection
 
 
-def embed_song(song_data: Dict, songs_collection, sections_collection):
-    """
-    Embed and store a single song in both collections
+def embed_song(song, songs_collection, sections_collection):
+    # Handle nested metadata structure
+    metadata = song.get('metadata', song)
+    song_id = str(metadata.get('genius_id', metadata.get('id')))
     
-    Args:
-        song_data: Song dict from genius_scraper output
-        songs_collection: Chroma collection for full songs
-        sections_collection: Chroma collection for sections
-    """
-    try:
-        metadata = song_data['metadata']
-        song_id = str(metadata['genius_id'])
-        
-        # Clean metadata - ensure no None values
-        clean_meta = {
-            'title': str(metadata.get('title') or 'Unknown'),
-            'artist': str(metadata.get('artist') or 'Unknown'),
-            'url': str(metadata.get('url') or ''),
-            'release_date': str(metadata.get('release_date') or 'Unknown')
-        }
-        
-        # 1. Store full song
+    # Check if song already exists
+    existing = songs_collection.get(ids=[song_id])
+    if existing['ids']:
+        print(f"⊘ Skipped: '{metadata['title']}' by {metadata['artist']} (already embedded)")
+        return
+    
+    # Extract metadata
+    title = metadata['title']
+    artist = metadata['artist']
+    
+    # Embed full song
+    full_text = song.get('full_lyrics', '')
+    if full_text:
         songs_collection.add(
-            documents=[song_data['full_lyrics']],
-            metadatas=[clean_meta],
+            documents=[full_text],
+            metadatas=[{
+                'title': title,
+                'artist': artist,
+                'genius_id': song_id
+            }],
             ids=[song_id]
         )
-        
-        # 2. Store sections
-        section_docs = []
-        section_metas = []
-        section_ids = []
-        
-        for i, section in enumerate(song_data['sections']):
-            section_id = f"{song_id}_section_{i}"
-            
-            section_docs.append(section['text'])
-            section_metas.append({
-                'song_id': song_id,
-                'title': str(metadata.get('title') or 'Unknown'),
-                'artist': str(metadata.get('artist') or 'Unknown'),
-                'section_type': str(section.get('section_type') or 'unknown'),
-                'section_number': int(section.get('section_number') or 0)
+    
+    # Embed individual sections
+    sections = song.get('sections', [])
+    documents = []
+    metadatas = []
+    ids = []
+    
+    for i, section in enumerate(sections):
+        section_text = section.get('text', '')
+        if section_text.strip():
+            documents.append(section_text)
+            metadatas.append({
+                'title': title,
+                'artist': artist,
+                'section_type': section.get('section_type', 'unknown'),
+                'section_number': i + 1,
+                'song_id': song_id
             })
-            section_ids.append(section_id)
-        
-        if section_docs:
-            sections_collection.add(
-                documents=section_docs,
-                metadatas=section_metas,
-                ids=section_ids
-            )
-        
-        print(f"✓ Embedded: '{clean_meta['title']}' by {clean_meta['artist']} ({len(section_docs)} sections)")
-        
-    except Exception as e:
-        title = song_data.get('metadata', {}).get('title', 'Unknown')
-        print(f"⚠️  Skipping '{title}': {str(e)}")
-        print(f"    Metadata: {song_data.get('metadata', {})}")
+            ids.append(f"{song_id}_section_{i}")
+    
+    if documents:
+        sections_collection.add(
+            documents=documents,
+            metadatas=metadatas,
+            ids=ids
+        )
+    
+    if full_text or documents:
+        section_count = len(documents) + (1 if full_text else 0)
+        print(f"✓ Embedded: '{title}' by {artist} ({section_count} sections)")
 
 def load_and_embed_all(json_path: str = "songs_data.json", 
                        db_path: str = "./lyrics_db",
