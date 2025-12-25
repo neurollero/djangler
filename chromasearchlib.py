@@ -6,8 +6,9 @@ import chromadb
 from chromadb.utils import embedding_functions
 from typing import List, Dict, Optional
 from collections import defaultdict
+import sys
 
-QUERY = ["stroking breasts"]
+QUERY = ["memories of childhood summers"]
 
 NUMBER_OF_SUGGESTIONS = 10
 
@@ -216,14 +217,21 @@ def print_results(results: List[Dict], show_sections: bool = True):
 
 
 # Example usage
+
 if __name__ == "__main__":
-    # Test queries
-    queries = QUERY
+    # Get query from command line or use default
+    if len(sys.argv) > 1:
+        query = " ".join(sys.argv[1:])
+    else:
+        query = QUERY  # fallback
+
+    results = search_songs(query, n_results=10)
+    print_results(results)
+
+
+    print(f"\n{'-'*60}")
+    print(f"Query: '{query}'")
+    print('_'*60)
     
-    for query in queries:
-        print(f"\n{'-'*60}")
-        print(f"Query: '{query}'")
-        print('_'*60)
-        
-        results = search_songs(query, n_results=NUMBER_OF_SUGGESTIONS)
-        print_results(results)
+    results = search_songs(query, n_results=NUMBER_OF_SUGGESTIONS)
+    print_results(results)
