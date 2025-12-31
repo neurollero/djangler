@@ -209,23 +209,27 @@ def search_songs(query: str,
         
         # Apply genre boost if genres match
         if use_genre_boosting and genre_filters and data['metadata']:
-            song_genres = data['metadata'].get('genres', [])
-            if song_genres:
+            genres_str = data['metadata'].get('genres', '')  # ✅ NEW - get as string
+            if genres_str:
+                # Split comma-separated string into list
+                song_genres_lower = [g.strip().lower() for g in genres_str.split(',')]
                 # Check if any song genre matches any filter genre
-                song_genres_lower = [g.lower() for g in song_genres]
                 if any(gf.lower() in sg for gf in genre_filters for sg in song_genres_lower):
                     combined_score *= genre_boost
                     data['genre_boosted'] = True
         
         # Sort sections by score
         data['sections'].sort(key=lambda x: x['score'], reverse=True)
+
+        genres_str = data['metadata'].get('genres', '')
+        genres_list = [g.strip() for g in genres_str.split(',')] if genres_str else []
         
         results.append({
             'song_id': song_id,
             'title': data['metadata']['title'],
             'artist': data['metadata']['artist'],
             'url': data['metadata'].get('url'),
-            'genres': data['metadata'].get('genres', []),
+            'genres': genres_list,
             'score': combined_score,
             'song_score': data['song_score'],
             'section_score': data['section_score'],
@@ -319,13 +323,27 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description='Search songs semantically')
-    parser.add_argument('query', nargs='+', help='Search query')
+    parser.add_argument('query', nargs='*', help='Search query')  # Changed to nargs='*'
     parser.add_argument('--genre-boost', type=float, default=1.5, 
                         help='Genre boost multiplier (default: 1.5, use 0 to disable)')
     parser.add_argument('-n', '--num-results', type=int, default=10,
                         help='Number of results (default: 10)')
+    parser.add_argument('--stats', action='store_true',
+                        help='Show database statistics')  # NEW
     
     args = parser.parse_args()
+    
+    # Show stats if requested
+    if args.stats:
+        _, songs_coll, sections_coll = load_collections()
+        print(f"\nDatabase Statistics:")
+        print(f"  Songs: {songs_coll.count()}")
+        print(f"  Sections: {sections_coll.count()}")
+        exit(0)
+    
+    # Require query if not showing stats
+    if not args.query:
+        parser.error("Query required (or use --stats)")
     
     query = " ".join(args.query)
 
