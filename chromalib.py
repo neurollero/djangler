@@ -85,7 +85,8 @@ def embed_song(song, songs_collection, sections_collection):
             metadatas=[{
                 'title': title,
                 'artist': artist,
-                'genius_id': song_id
+                'genius_id': song_id,
+                'genres': ', '.join(metadata.get('genres', [])) 
             }],
             ids=[song_id]
         )
