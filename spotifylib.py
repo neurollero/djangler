@@ -60,38 +60,19 @@ def get_playlist_tracks(sp: spotipy.Spotify, playlist_id: str) -> List[Dict]:
     results = sp.playlist_tracks(playlist_id)
     
     while results:
-        # Collect track IDs for batch audio features request
-        track_ids = []
-        track_items = []
-        
         for item in results['items']:
             if item['track'] and item['track']['name']:
                 track = item['track']
-                track_ids.append(track['id'])
-                track_items.append(track)
-        
-        # Get audio features in batch (more efficient)
-        audio_features_list = sp.audio_features(track_ids) if track_ids else []
-        
-        # Combine track info with audio features
-        for track, audio_features in zip(track_items, audio_features_list):
-            audio_features = audio_features or {}  # Handle None
-            
-            tracks.append({
-                'title': track['name'],
-                'artist': track['artists'][0]['name'],
-                'spotify_id': track['id'],
-                'album': track['album']['name'],
-                'release_date': track['album'].get('release_date', ''),
-                'popularity': track.get('popularity'),
-                'energy': audio_features.get('energy'),
-                'valence': audio_features.get('valence'),
-                'danceability': audio_features.get('danceability'),
-                'acousticness': audio_features.get('acousticness'),
-                'tempo': audio_features.get('tempo')
-            })
-        
-        # Pagination
+                tracks.append({
+                    'title': track['name'],
+                    'artist': track['artists'][0]['name'],
+                    'spotify_id': track['id'],
+                    'album': track['album']['name'],
+                    'release_date': track['album'].get('release_date', ''),
+                    'popularity': track.get('popularity')
+                    # Remove all audio feature fields
+                })
+                
         results = sp.next(results) if results['next'] else None
     
     return tracks
