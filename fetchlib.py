@@ -15,7 +15,7 @@ from difflib import SequenceMatcher
 
 # Genius API limit
 MAX_DAILY_REQUESTS = 10000
-API_PAUSE = 0.2
+API_PAUSE = 0.1
 
 # Similarity threshold for fuzzy title match
 TITLE_SIMILARITY = 0.7
@@ -24,7 +24,7 @@ TITLE_SIMILARITY = 0.7
 OUTPUT_PATH = "songs_data.json"
 
 # File with list of songs get lyrics from, output of spotifylib.save_song_list
-SAVED_SONG_JSON = "songs_list_ritter.json"
+SAVED_SONG_JSON = "songs_list_batch1.json"
 
 # Test songs
 TEST_SONGS = [
@@ -41,7 +41,7 @@ TEST_SONGS = [
 ]
 
 
-def fetch_lyrics(song_title: str, artist: str, access_token: str) -> Optional[Dict]:
+def fetch_lyrics(song_title: str, artist: str, access_token: str, timeout: int = 15) -> Optional[Dict]:
     """
     Fetch raw lyrics from Genius API
     
@@ -49,6 +49,7 @@ def fetch_lyrics(song_title: str, artist: str, access_token: str) -> Optional[Di
         song_title: Title of the song
         artist: Artist name
         access_token: Genius API access token
+        timeout: Request timeout in seconds (default: 15)
     
     Returns:
         Dict with 'lyrics' (raw text) and 'metadata' (title, artist, url, etc.)
@@ -62,7 +63,7 @@ def fetch_lyrics(song_title: str, artist: str, access_token: str) -> Optional[Di
     params = {"q": f"{song_title} {artist}"}
     
     try:
-        response = requests.get(search_url, headers=headers, params=params)
+        response = requests.get(search_url, headers=headers, params=params, timeout=timeout)
         response.raise_for_status()
         search_data = response.json()
         
@@ -75,7 +76,7 @@ def fetch_lyrics(song_title: str, artist: str, access_token: str) -> Optional[Di
         song_url = song_info['url']
         
         # Scrape lyrics from song page
-        page = requests.get(song_url)
+        page = requests.get(song_url, timeout=timeout)
         html = BeautifulSoup(page.text, 'html.parser')
         
         # Genius stores lyrics in div with specific data attribute
@@ -101,6 +102,15 @@ def fetch_lyrics(song_title: str, artist: str, access_token: str) -> Optional[Di
             'metadata': metadata
         }
         
+    except requests.exceptions.Timeout:
+        print(f"⏱️  Timeout fetching '{song_title}' by {artist} - skipping")
+        return None
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 429:
+            print(f"⚠️  Rate limited on '{song_title}' - will retry")
+            raise  # Re-raise to trigger retry logic in caller
+        print(f"HTTP error fetching '{song_title}': {str(e)}")
+        return None
     except Exception as e:
         print(f"Error fetching lyrics for '{song_title}': {str(e)}")
         return None
@@ -223,7 +233,8 @@ def normalize_title(text):
     return text
 
 def process_song(song_title: str, artist: str, access_token: str, 
-                 output_path: str = "songs_data.json") -> Optional[Dict]:
+                 output_path: str = "songs_data.json",
+                 timeout: int = 15) -> Optional[Dict]:
     """
     Complete ETL pipeline for a single song
     
@@ -232,6 +243,7 @@ def process_song(song_title: str, artist: str, access_token: str,
         artist: Artist name
         access_token: Genius API access token
         output_path: Path to save JSON output
+        timeout: Request timeout in seconds (default: 15)
     
     Returns:
         Processed song data dict, or None if failed
@@ -253,8 +265,8 @@ def process_song(song_title: str, artist: str, access_token: str,
     
     print(f"\nProcessing: '{song_title}' by {artist}")
     
-    # 1. Fetch
-    result = fetch_lyrics(song_title, artist, access_token)
+    # 1. Fetch (with timeout)
+    result = fetch_lyrics(song_title, artist, access_token, timeout=timeout)
     if not result:
         return None
     
