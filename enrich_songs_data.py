@@ -60,7 +60,7 @@ def enrich_songs_data(input_path: str = "songs_data.json",
     print(f"Loaded {len(songs)} songs from {input_path}")
     
     # Check if already have genres
-    already_enriched = sum(1 for s in songs if s.get('metadata', {}).get('genres'))
+    already_enriched = sum(1 for s in songs if 'genres' in s.get('metadata', {}))
     print(f"Already enriched: {already_enriched}/{len(songs)}")
     
     artist_cache = {}  # Cache to avoid duplicate lookups
@@ -70,8 +70,8 @@ def enrich_songs_data(input_path: str = "songs_data.json",
         metadata = song.get('metadata', {})
         artist = metadata.get('artist', 'Unknown')
         
-        # Skip if already has genres
-        if metadata.get('genres'):
+        # Skip if already has genres key (even if empty list)
+        if 'genres' in metadata:
             continue
         
         # Get artist info (genres + popularity)

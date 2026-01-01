@@ -30,7 +30,8 @@ GENRE_KEYWORDS = {
     'pop': ['pop', 'dance pop', 'electropop', 'synth pop', 'k-pop', 'art pop'],
     'hip hop': ['hip hop', 'rap', 'trap', 'drill', 'boom bap', 'conscious rap'],
     'country': ['country', 'alt country', 'americana', 'bluegrass', 'outlaw country'],
-    'r&b': ['r&b', 'rnb', 'soul', 'neo soul', 'alternative r&b'],
+    'r&b': ['r&b', 'rnb', 'soul', 'neo soul', 'alternative r&b', 'quiet storm', 
+        'contemporary r&b', 'new jack swing'],
     'electronic': ['edm', 'house', 'techno', 'dubstep', 'trance', 'drum and bass', 
                    'ambient', 'downtempo', 'electronic'],
     'folk': ['folk', 'folk rock', 'singer-songwriter', 'acoustic', 'alt-folk'],
@@ -41,7 +42,8 @@ GENRE_KEYWORDS = {
     'alternative': ['alternative', 'alt rock', 'shoegaze', 'dream pop', 'post-rock'],
     'dance': ['disco', 'funk', 'dance', 'nu-disco'],
     'experimental': ['experimental', 'avant-garde', 'noise', 'industrial'],
-    'grunge': ['grunge', 'post-grunge']
+    'grunge': ['grunge', 'post-grunge'],
+    'shoegaze': ['shoegaze', 'dream pop', 'noise pop', 'ethereal wave']
 }
 
 
