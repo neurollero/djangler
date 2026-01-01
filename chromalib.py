@@ -63,6 +63,12 @@ def create_collections(client: chromadb.PersistentClient,
 
 
 def embed_song(song, songs_collection, sections_collection):
+    """
+    Embed a single song and its sections
+    
+    Returns:
+        'skipped' if already exists, 'embedded' if successful
+    """
     # Handle nested metadata structure
     metadata = song.get('metadata', song)
     song_id = str(metadata.get('genius_id', metadata.get('id')))
@@ -70,8 +76,7 @@ def embed_song(song, songs_collection, sections_collection):
     # Check if song already exists
     existing = songs_collection.get(ids=[song_id])
     if existing['ids']:
-        print(f"⊘ Skipped: '{metadata['title']}' by {metadata['artist']} (already embedded)")
-        return
+        return 'skipped'
     
     # Extract metadata
     title = metadata['title']
@@ -86,7 +91,8 @@ def embed_song(song, songs_collection, sections_collection):
                 'title': title,
                 'artist': artist,
                 'genius_id': song_id,
-                'genres': ', '.join(metadata.get('genres', [])) 
+                'genres': ', '.join(metadata.get('genres', [])),
+                'artist_popularity': metadata.get('artist_popularity', 0)
             }],
             ids=[song_id]
         )
@@ -117,9 +123,7 @@ def embed_song(song, songs_collection, sections_collection):
             ids=ids
         )
     
-    if full_text or documents:
-        section_count = len(documents) + (1 if full_text else 0)
-        print(f"✓ Embedded: '{title}' by {artist} ({section_count} sections)")
+    return 'embedded'
 
 def load_and_embed_all(json_path: str = "songs_data.json", 
                        db_path: str = "./lyrics_db",
@@ -142,13 +146,36 @@ def load_and_embed_all(json_path: str = "songs_data.json",
     client = setup_chroma(db_path)
     songs_collection, sections_collection = create_collections(client, model_name)
     
-    # Embed each song
-    for song_data in songs:
-        embed_song(song_data, songs_collection, sections_collection)
+    # Track stats
+    stats = {'embedded': 0, 'skipped': 0, 'failed': 0}
     
-    print(f"\n✓ Embedded all {len(songs)} songs!")
-    print(f"  - Songs collection: {songs_collection.count()} documents")
-    print(f"  - Sections collection: {sections_collection.count()} documents")
+    # Embed each song with progress bar
+    total = len(songs)
+    for i, song_data in enumerate(songs, 1):
+        try:
+            result = embed_song(song_data, songs_collection, sections_collection)
+            if result == 'skipped':
+                stats['skipped'] += 1
+            else:
+                stats['embedded'] += 1
+        except Exception as e:
+            stats['failed'] += 1
+            metadata = song_data.get('metadata', {})
+            print(f"\n✗ Failed: '{metadata.get('title', 'Unknown')}' - {e}")
+        
+        # Progress bar
+        if i % 100 == 0 or i == total:
+            pct = i / total * 100
+            bar_len = 40
+            filled = int(bar_len * i / total)
+            bar = '█' * filled + '░' * (bar_len - filled)
+            print(f'\r{bar} {i}/{total} ({pct:.1f}%)', end='', flush=True)
+    
+    print(f"\n\n✓ Complete!")
+    print(f"  Embedded: {stats['embedded']}")
+    print(f"  Skipped:  {stats['skipped']} (already in DB)")
+    print(f"  Failed:   {stats['failed']}")
+    print(f"  Total DB: {songs_collection.count()} songs, {sections_collection.count()} sections")
 
 
 def reset_collections(db_path: str = "./lyrics_db"):
@@ -170,9 +197,26 @@ def reset_collections(db_path: str = "./lyrics_db"):
 
 # Example usage
 if __name__ == "__main__":
-    # Option 1: Load and embed all songs
-    load_and_embed_all()
+    import argparse
     
-    # Option 2: Reset and start fresh
-    # reset_collections()
-    # load_and_embed_all()
+    parser = argparse.ArgumentParser(description='Embed songs into ChromaDB')
+    parser.add_argument('input', nargs='?', default='songs_data.json',
+                       help='Input JSON file (default: songs_data.json)')
+    parser.add_argument('--db-path', default='./lyrics_db',
+                       help='ChromaDB path (default: ./lyrics_db)')
+    parser.add_argument('--reset', action='store_true',
+                       help='Reset collections before embedding')
+    parser.add_argument('--model', default=EMBEDDING_MODEL,
+                       help=f'Embedding model (default: {EMBEDDING_MODEL})')
+    
+    args = parser.parse_args()
+    
+    if args.reset:
+        print("Resetting collections...")
+        reset_collections(args.db_path)
+    
+    load_and_embed_all(
+        json_path=args.input,
+        db_path=args.db_path,
+        model_name=args.model
+    )

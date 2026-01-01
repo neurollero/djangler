@@ -68,6 +68,31 @@ with st.sidebar:
         0.0, 3.0, 1.5, 0.1,
         help="Multiplier for songs matching genre keywords (e.g., 'indie rock')"
     )
+    # Popularity controls
+    st.divider()
+    st.subheader("Popularity Ranking")
+    
+    min_popularity = st.slider(
+        "Minimum popularity",
+        0, 100, 25,
+        help="Filter out songs below this popularity (25 = suppress weird/unpopular songs)"
+    )
+    
+    max_popularity_boost = st.slider(
+        "Max popularity boost",
+        1.0, 2.0, 1.5, 0.1,
+        help="Maximum boost for very popular songs (pop >= 90). 1.0 = no boost, 1.5 = 50% boost"
+    )
+    
+    # Show what the settings mean
+    if max_popularity_boost > 1.0:
+        st.caption(f"✓ Popular songs (pop 90+) boosted {(max_popularity_boost-1)*100:.0f}%")
+    else:
+        st.caption("No popularity boost")
+    
+    if min_popularity > 0:
+        st.caption(f"✓ Filtering songs with popularity < {min_popularity}")
+
     
     show_sections = st.checkbox("Show matched lyrics", value=True)
     show_genres = st.checkbox("Show genres", value=True)
@@ -109,8 +134,11 @@ if query:
                 query=query,
                 n_results=n_results,
                 genre_boost=genre_boost,
+                min_popularity=min_popularity,
+                max_popularity_boost=max_popularity_boost,
                 use_genre_boosting=(genre_boost > 0)
             )
+
             
             if not results:
                 st.warning("No results found. Try a different query.")
@@ -129,6 +157,31 @@ if query:
                         if show_genres and r.get('genres'):
                             genres_display = ', '.join(r['genres'][:5])
                             st.caption(f"🏷️ {genres_display}")
+                        
+                        # Popularity display
+                        popularity = r.get('popularity', 0)
+                        if popularity:
+                            # Determine tier based on dataset
+                            pop_tier = "niche"
+                            tier_emoji = "📊"
+                            if popularity >= 84:  # P90
+                                pop_tier = "very popular"
+                                tier_emoji = "🔥"
+                            elif popularity >= 76:  # P75
+                                pop_tier = "popular"
+                                tier_emoji = "⭐"
+                            elif popularity >= 64:  # P50
+                                pop_tier = "established"
+                                tier_emoji = "✓"
+                        
+                        # Show boost if applied
+                        boost_factor = r.get('popularity_boost_factor', 1.0)
+                        pop_text = f"{tier_emoji} Popularity: {popularity} ({pop_tier})"
+                        if boost_factor > 1.0:
+                            pop_text += f" • Boosted {(boost_factor-1)*100:.0f}%"
+                        
+                        st.caption(pop_text)
+
                         
                         # Scores
                         if show_scores:
