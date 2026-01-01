@@ -21,6 +21,8 @@ SECTION_QUERY_LIMIT = 100
 DEFAULT_SONG_WEIGHT = 0.5
 DEFAULT_SECTION_WEIGHT = 0.6
 DEFAULT_GENRE_BOOST = 1.5
+DEFAULT_MIN_POPULARITY = 25  # Filter bottom ~15% (weird/unpopular songs)
+DEFAULT_MAX_POPULARITY_BOOST = 1.5  # Max boost for pop >= 90
 
 # Genre keyword mappings for query parsing
 GENRE_KEYWORDS = {
@@ -78,6 +80,38 @@ def parse_query_for_genres(query: str) -> Tuple[str, List[str]]:
     
     return cleaned_query, list(matched_genres)
 
+def get_popularity_boost(popularity: int, max_boost: float = 3) -> float:
+    """
+    Smooth popularity boost based on linear scaling
+    
+    Dataset context (P50=64, P75=76, P90=84):
+    - popularity < 50: No boost
+    - popularity 50-90: Linear scale from 1.0x to max_boost
+    - popularity >= 90: Full max_boost
+    
+    Args:
+        popularity: Artist popularity (0-100)
+        max_boost: Maximum boost factor (default 1.5)
+    
+    Returns:
+        Boost multiplier (1.0 to max_boost)
+    
+    Examples:
+        pop=40 → 1.0x (no boost)
+        pop=70 → 1.25x (halfway between 50 and 90)
+        pop=95 → 1.5x (max boost)
+    """
+    if popularity is None or popularity < 50:
+        return 1.0
+    
+    if popularity >= 90:
+        return max_boost
+    
+    # Linear interpolation from pop=50 (1.0x) to pop=90 (max_boost)
+    normalized = (popularity - 50) / 40.0
+    return 1.0 + (max_boost - 1.0) * normalized
+
+
 
 def load_collections(db_path: str = "./lyrics_db", 
                     model_name: str = EMBEDDING_MODEL):
@@ -109,11 +143,13 @@ def search_songs(query: str,
                 song_weight: float = DEFAULT_SONG_WEIGHT,
                 section_weight: float = DEFAULT_SECTION_WEIGHT,
                 genre_boost: float = DEFAULT_GENRE_BOOST,
+                min_popularity: int = DEFAULT_MIN_POPULARITY,
+                max_popularity_boost: float = DEFAULT_MAX_POPULARITY_BOOST,
                 song_query_limit: int = SONG_QUERY_LIMIT,
                 section_query_limit: int = SECTION_QUERY_LIMIT,
                 use_genre_boosting: bool = True) -> List[Dict]:
     """
-    Search for songs using hybrid approach with optional genre boosting
+    Search for songs using hybrid approach with genre and popularity boosting
     
     Args:
         query: Search query text
@@ -122,6 +158,8 @@ def search_songs(query: str,
         song_weight: Weight for song-level matches (0-1)
         section_weight: Weight for section-level matches (0-1)
         genre_boost: Multiplier for genre matches (e.g., 1.5 = 50% boost)
+        min_popularity: Filter songs below this popularity (0-100)
+        max_popularity_boost: Maximum popularity boost at pop >= 90
         song_query_limit: Max songs to query from collection
         section_query_limit: Max sections to query from collection
         use_genre_boosting: Whether to parse and boost by genres
@@ -211,14 +249,22 @@ def search_songs(query: str,
         
         # Apply genre boost if genres match
         if use_genre_boosting and genre_filters and data['metadata']:
-            genres_str = data['metadata'].get('genres', '')  # ✅ NEW - get as string
+            genres_str = data['metadata'].get('genres', '')
             if genres_str:
-                # Split comma-separated string into list
                 song_genres_lower = [g.strip().lower() for g in genres_str.split(',')]
-                # Check if any song genre matches any filter genre
                 if any(gf.lower() in sg for gf in genre_filters for sg in song_genres_lower):
                     combined_score *= genre_boost
                     data['genre_boosted'] = True
+    
+        # Apply popularity threshold and boost
+        popularity = data['metadata'].get('artist_popularity', 0) if data['metadata'] else 0
+        
+        # Apply smooth popularity boost
+        pop_boost = get_popularity_boost(popularity, max_popularity_boost)
+        if pop_boost > 1.0:
+            combined_score *= pop_boost
+            data['popularity_boosted'] = True
+            data['popularity_boost_factor'] = pop_boost
         
         # Sort sections by score
         data['sections'].sort(key=lambda x: x['score'], reverse=True)
@@ -232,10 +278,13 @@ def search_songs(query: str,
             'artist': data['metadata']['artist'],
             'url': data['metadata'].get('url'),
             'genres': genres_list,
+            'popularity': popularity,
             'score': combined_score,
             'song_score': data['song_score'],
             'section_score': data['section_score'],
-            'genre_boosted': data['genre_boosted'],
+            'genre_boosted': data.get('genre_boosted', False),
+            'popularity_boosted': data.get('popularity_boosted', False),
+            'popularity_boost_factor': data.get('popularity_boost_factor', 1.0),
             'top_sections': data['sections'][:3]
         })
     
@@ -249,6 +298,10 @@ def search_songs(query: str,
         if r['song_id'] not in seen_ids:
             seen_ids.add(r['song_id'])
             unique_results.append(r)
+    
+    # Filter by minimum popularity
+    if min_popularity > 0:
+        unique_results = [r for r in unique_results if r.get('popularity', 0) >= min_popularity]
     
     return unique_results[:n_results]
 
@@ -294,18 +347,33 @@ def search_sections_only(query: str,
 
 
 def print_results(results: List[Dict], show_sections: bool = True):
-    """
-    Pretty print search results
-    
-    Args:
-        results: Results from search_songs()
-        show_sections: Whether to show matching section snippets
-    """
+    """Pretty print search results with boost indicators"""
     print(f"\nFound {len(results)} songs:\n")
     
     for i, result in enumerate(results, 1):
-        boost_indicator = " 🎵" if result.get('genre_boosted') else ""
-        print(f"{i}. {result['title']} - {result['artist']}{boost_indicator}")
+        # Boost indicators
+        genre_indicator = " 🎸" if result.get('genre_boosted') else ""
+        pop_indicator = " ⭐" if result.get('popularity_boosted') else ""
+        
+        print(f"{i}. {result['title']} - {result['artist']}{genre_indicator}{pop_indicator}")
+        
+        # Show popularity
+        popularity = result.get('popularity')
+        if popularity is not None:
+            # Tiers based on your dataset
+            pop_tier = "niche"
+            if popularity >= 84:  # P90
+                pop_tier = "very popular"
+            elif popularity >= 76:  # P75
+                pop_tier = "popular"
+            elif popularity >= 64:  # P50
+                pop_tier = "established"
+            
+            pop_display = f"{popularity}"
+            if result.get('popularity_boost_factor', 1.0) > 1.0:
+                pop_display += f" (×{result['popularity_boost_factor']:.2f})"
+            
+            print(f"   Popularity: {pop_display} ({pop_tier})")
         
         # Show genres if available
         if result.get('genres'):
@@ -319,7 +387,6 @@ def print_results(results: List[Dict], show_sections: bool = True):
         
         print()
 
-
 # Example usage
 if __name__ == "__main__":
     import argparse
@@ -328,6 +395,10 @@ if __name__ == "__main__":
     parser.add_argument('query', nargs='*', help='Search query')  # Changed to nargs='*'
     parser.add_argument('--genre-boost', type=float, default=1.5, 
                         help='Genre boost multiplier (default: 1.5, use 0 to disable)')
+    parser.add_argument('--min-pop', type=int, default=25,
+                        help='Minimum popularity threshold (default: 25, filters weird songs)')
+    parser.add_argument('--max-pop-boost', type=float, default=1.5,
+                        help='Maximum popularity boost at pop>=90 (default: 1.5)')
     parser.add_argument('-n', '--num-results', type=int, default=10,
                         help='Number of results (default: 10)')
     parser.add_argument('--stats', action='store_true',
@@ -357,6 +428,9 @@ if __name__ == "__main__":
         query,
         n_results=args.num_results,
         genre_boost=args.genre_boost,
+        min_popularity=args.min_pop,
+        max_popularity_boost=args.max_pop_boost,
         use_genre_boosting=(args.genre_boost > 0)
     )
+
     print_results(results)
