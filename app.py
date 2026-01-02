@@ -4,6 +4,13 @@ Streamlit UI for Hugging Face Spaces
 """
 
 import streamlit as st
+import sys
+from pathlib import Path
+
+# Add src to path for Hugging Face Spaces
+sys.path.insert(0, str(Path(__file__).parent / 'src'))
+
+from chromasearchlib import search_songs, load_collections
 
 # Show loading message during initial imports
 with st.spinner("Loading search engine... (first run may take 1-2 minutes)"):
