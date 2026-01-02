@@ -9,13 +9,24 @@ from typing import List, Dict
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from collections import Counter
+import os
+from dotenv import load_dotenv
 
-SPOTIFY_CLIENT_ID = "dc02e1a590e344558af75713c5f95e02"
-SPOTIFY_CLIENT_SECRET = "921349166f544ae88d4f599b4f72b5dc"
+load_dotenv()
+
+# SPOTIFY_CLIENT_ID = "dc02e1a590e344558af75713c5f95e02"
+# SPOTIFY_CLIENT_SECRET = "921349166f544ae88d4f599b4f72b5dc"
 
 
-def setup_spotify(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET):
+def setup_spotify(client_id=None, client_secret=None):
     """Initialize Spotify client"""
+
+    client_id = client_id or os.getenv('SPOTIFY_CLIENT_ID')
+    client_secret = client_secret or os.getenv('SPOTIFY_CLIENT_SECRET')
+    
+    if not client_id or not client_secret:
+        raise ValueError("Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env")
+    
     auth_manager = SpotifyClientCredentials(
         client_id=client_id,
         client_secret=client_secret

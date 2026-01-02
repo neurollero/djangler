@@ -7,6 +7,10 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from typing import List, Dict, Set
 import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # Popular playlist IDs (from Spotify)
@@ -23,11 +27,11 @@ DEFAULT_PLAYLISTS = [
     "37i9dQZF1DX3rxVfibe1L0",  # Mood Booster
 ]
 
-SPOTIFY_CLIENT_ID = "dc02e1a590e344558af75713c5f95e02"
-SPOTIFY_CLIENT_SECRET = "921349166f544ae88d4f599b4f72b5dc"
+# SPOTIFY_CLIENT_ID = "dc02e1a590e344558af75713c5f95e02"
+# SPOTIFY_CLIENT_SECRET = "921349166f544ae88d4f599b4f72b5dc"
 
 
-def setup_spotify(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET) -> spotipy.Spotify:
+def setup_spotify(client_id=None, client_secret=None):
     """
     Initialize Spotify client
     
@@ -38,6 +42,13 @@ def setup_spotify(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECR
     Returns:
         Spotify client instance
     """
+
+    client_id = client_id or os.getenv('SPOTIFY_CLIENT_ID')
+    client_secret = client_secret or os.getenv('SPOTIFY_CLIENT_SECRET')
+    
+    if not client_id or not client_secret:
+        raise ValueError("Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env")
+    
     auth_manager = SpotifyClientCredentials(
         client_id=client_id,
         client_secret=client_secret
@@ -126,7 +137,7 @@ def get_songs_from_playlists(client_id: str,
     return all_tracks[:target_count]
 
 
-def save_song_list(tracks: List[Dict], output_path: str = "song_list.json"):
+def save_song_list(tracks: List[Dict], output_path: str = "song_list_batch1.json"):
     """
     Save song list to JSON
     
@@ -160,7 +171,8 @@ def load_song_list(input_path: str = "song_list.json") -> List[Dict]:
 if __name__ == "__main__":
     # Get credentials from: https://developer.spotify.com/dashboard
     SPOTIFY_CLIENT_ID = "YOUR_CLIENT_ID"
-    SPOTIFY_CLIENT_SECRET = "YOUR_CLIENT_SECRET"
+    SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+    SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
     
     if SPOTIFY_CLIENT_ID == "YOUR_CLIENT_ID":
         print("Please set your Spotify credentials!")
