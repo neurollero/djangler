@@ -9,6 +9,9 @@ import time
 import argparse
 from pathlib import Path
 from fetchlib import fetch_lyrics, parse_sections, clean_lyrics
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 
 def populate_from_metadata(

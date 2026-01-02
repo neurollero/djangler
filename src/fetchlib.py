@@ -12,6 +12,10 @@ import requests
 import unicodedata
 from bs4 import BeautifulSoup
 from difflib import SequenceMatcher
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Genius API limit
 MAX_DAILY_REQUESTS = 10000
@@ -325,7 +329,8 @@ def load_songs_as_tuples(json_path: str = "song_list.json") -> List[tuple]:
 if __name__ == "__main__":
     song_lyrics_to_get = load_songs_as_tuples(SAVED_SONG_JSON)
     
-    GENIUS_ACCESS_TOKEN = "-XneXPQ8TZn0D1Z6cGM_PtgeyN_WowjM65Raw2Ph0Hemn0G8a-HKSjP9CzCdW4fg"
+    # GENIUS_ACCESS_TOKEN = "-XneXPQ8TZn0D1Z6cGM_PtgeyN_WowjM65Raw2Ph0Hemn0G8a-HKSjP9CzCdW4fg"
+    GENIUS_ACCESS_TOKEN = os.getenv("GENIUS_ACCESS_TOKEN")
     
     if GENIUS_ACCESS_TOKEN == "YOUR_ACCESS_TOKEN_HERE":
         print("Please set your Genius API access token!")
