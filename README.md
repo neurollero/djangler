@@ -33,28 +33,24 @@ DJANGLER is a semantic search engine for song lyrics. Instead of keyword matchin
 
 ## Quick Start
 
-Get up and running in 3 steps: download curated metadata, fetch lyrics, create embeddings.
+Get up and running in 3 steps: populate lyrics from included metadata, create embeddings, search.
 
 ### 1. Clone & Install
 
 ```bash
 git clone https://github.com/youruser/djangler.git
 cd djangler
-pip install chromadb sentence-transformers requests beautifulsoup4
+pip install chromadb sentence-transformers requests beautifulsoup4 spotipy
 ```
 
-### 2. Download & Populate Dataset
+### 2. Populate Dataset
 
-**Get the curated metadata** (~1MB, no copyrighted content):
-```bash
-# Download from releases
-wget https://github.com/youruser/djangler/releases/latest/download/metadata_distribution.json.gz
-```
+The curated metadata is included in the repo (`metadata_distribution.json.gz`, ~426KB).
 
 **Fetch lyrics** using your own Genius API key ([get one here](https://genius.com/api-clients)):
 ```bash
 export GENIUS_ACCESS_TOKEN='your_token_here'
-python populate_from_metadata.py metadata_distribution.json.gz
+python scripts/populate_from_metadata.py metadata_distribution.json.gz
 ```
 
 This takes ~30 minutes for 9k songs. Progress is checkpointed every 100 songs.
@@ -62,7 +58,7 @@ This takes ~30 minutes for 9k songs. Progress is checkpointed every 100 songs.
 ### 3. Create Embeddings
 
 ```bash
-python chromalib.py
+python src/chromalib.py
 ```
 
 Takes ~10 minutes. Creates `./lyrics_db/` with vector embeddings.
@@ -71,13 +67,13 @@ Takes ~10 minutes. Creates `./lyrics_db/` with vector embeddings.
 
 ```bash
 # Basic search
-python chromasearchlib.py feeling lost searching for meaning
+python src/chromasearchlib.py feeling lost searching for meaning
 
 # With genre filtering
-python chromasearchlib.py indie songs about loneliness --genre-boost 1.5
+python src/chromasearchlib.py indie songs about loneliness --genre-boost 1.5
 
 # More results
-python chromasearchlib.py heartbreak -n 20
+python src/chromasearchlib.py heartbreak -n 20
 ```
 
 **Web interface**:
@@ -95,16 +91,16 @@ streamlit run app.py
 **Search with options:**
 ```bash
 # Basic search
-python chromasearchlib.py <your query here>
+python src/chromasearchlib.py <your query here>
 
 # With genre boosting (0 = disabled, 1.5 = default, 3.0 = max)
-python chromasearchlib.py indie rock rebellion --genre-boost 1.5
+python src/chromasearchlib.py indie rock rebellion --genre-boost 1.5
 
 # Number of results (5-20)
-python chromasearchlib.py childhood memories -n 20
+python src/chromasearchlib.py childhood memories -n 20
 
 # Database statistics
-python chromasearchlib.py --stats
+python src/chromasearchlib.py --stats
 ```
 
 **Genre keywords** (automatically detected in queries):
@@ -113,7 +109,7 @@ python chromasearchlib.py --stats
 - Hip Hop: `hip hop`, `rap`, `trap`, `drill`, `boom bap`
 - Electronic: `edm`, `house`, `techno`, `dubstep`, `trance`
 - R&B: `r&b`, `rnb`, `soul`, `neo soul`
-- And many more... (see `chromasearchlib.py` for full list)
+- And many more... (see `src/chromasearchlib.py` for full list)
 
 ### Python API
 
@@ -144,14 +140,14 @@ for section in sections:
 
 ### Configuration
 
-**Search weights** (in `chromasearchlib.py`):
+**Search weights** (in `src/chromasearchlib.py`):
 ```python
 DEFAULT_SONG_WEIGHT = 0.5      # Full-song match weight
 DEFAULT_SECTION_WEIGHT = 0.6   # Section match weight
 DEFAULT_GENRE_BOOST = 1.5      # Genre match multiplier
 ```
 
-**Embedding model** (in `chromalib.py`):
+**Embedding model** (in `src/chromalib.py`):
 ```python
 EMBEDDING_MODEL = "all-mpnet-base-v2"  # 768 dims, better quality
 # Alternative: "all-MiniLM-L6-v2"      # 384 dims, faster/smaller
@@ -159,7 +155,7 @@ EMBEDDING_MODEL = "all-mpnet-base-v2"  # 768 dims, better quality
 
 ### Building Your Own Dataset
 
-If you want to build from scratch instead of using the metadata distribution:
+If you want to build from scratch instead of using the included metadata:
 
 #### 1. Scrape Spotify Playlists
 
@@ -294,7 +290,7 @@ lyrics_db/              # ChromaDB vector storage
 
 **Jupyter notebook:**
 ```bash
-jupyter notebook dev_notebook_clean.ipynb
+jupyter notebook examples/dev_notebook_clean.ipynb
 ```
 
 Includes complete pipeline demos, search experiments, and database utilities.
@@ -302,13 +298,13 @@ Includes complete pipeline demos, search experiments, and database utilities.
 **Analysis scripts:**
 ```bash
 # Dataset statistics
-python -c "from enrich_songs_data import print_genre_summary; print_genre_summary('songs_data.json')"
+python scripts/enrich_songs_data.py --analyze
 
 # Genre gap analysis
-python enrich_songs_data.py --analyze
+python scripts/enrich_songs_data.py songs_data.json --analyze
 
 # Extract test subset
-python extract_subset.py songs_data.json 100 -o test_songs.json
+python scripts/extract_subset.py songs_data.json 100 -o test_songs.json
 ```
 
 ### Deployment
@@ -354,17 +350,17 @@ Genre boosting multiplies the relevance score for songs whose genres match keywo
 
 **Why metadata-only?**
 - Lyrics are copyrighted content
-- Metadata distribution: ~1MB vs ~30MB full dataset
+- Metadata distribution: ~426KB vs ~30MB full dataset
 - Users fetch lyrics with own Genius API key
 
 **Creating a distribution:**
 ```bash
-python create_metadata_distribution.py songs_data.json -o metadata_distribution.json.gz
+python scripts/create_metadata_distribution.py songs_data.json -o metadata_distribution.json.gz
 ```
 
 **Validating:**
 ```bash
-python validate_metadata.py metadata_distribution.json.gz
+python scripts/validate_metadata.py metadata_distribution.json.gz
 ```
 
 **What's included:**
