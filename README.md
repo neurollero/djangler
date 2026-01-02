@@ -2,6 +2,12 @@
 
 **Find songs by what they mean, not what they say.**
 
+## Live Demo
+
+Try DJANGLER without any setup: **[🎵 DJANGLER on Hugging Face Spaces 🤗](https://huggingface.co/spaces/neurollero/djangler)**
+
+Search semantically through 9,000+ songs directly in your browser.    
+
 ## Overview
 
 DJANGLER is a semantic search engine for song lyrics. Instead of keyword matching, it understands meaning, themes, and emotions using vector embeddings.
