@@ -207,6 +207,38 @@ if query:
                         # Genius link
                         if r.get('url'):
                             st.link_button("View on Genius", r['url'])
+            # export to spotify: #TODO need to update earlier pipeline and embedding to keep spotify ids
+            if results:
+                st.divider()
+                
+                # Spotify URIs (simplest)
+                uris = [f"spotify:track:{r.get('metadata', {}).get('spotify_id')}" 
+                        for r in results 
+                        if r.get('metadata', {}).get('spotify_id')]
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    if st.button("📋 Copy Spotify URIs"):
+                        st.code('\n'.join(uris), language=None)
+                        st.caption("Paste into Spotify Desktop to create playlist")
+                
+                with col2:
+                    # CSV export for Apple Music
+                    if st.button("📥 Download CSV"):
+                        import csv, io
+                        output = io.StringIO()
+                        writer = csv.writer(output)
+                        writer.writerow(['Title', 'Artist'])
+                        for r in results:
+                            writer.writerow([r['title'], r['artist']])
+                        
+                        st.download_button(
+                            "Download CSV",
+                            output.getvalue(),
+                            "djangler_playlist.csv",
+                            "text/csv"
+                        )
                 
         except Exception as e:
             st.error(f"Search failed: {e}")
