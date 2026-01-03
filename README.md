@@ -6,7 +6,7 @@
 
 Try DJANGLER without any setup: **[🎵 DJANGLER on Hugging Face Spaces 🤗](https://huggingface.co/spaces/neurollero/djangler)**
 
-Search semantically through 9,000+ songs directly in your browser.    
+Search semantically through 8,000+ songs directly in your browser.    
 
 ## Overview
 
@@ -18,7 +18,7 @@ DJANGLER is a semantic search engine for song lyrics. Instead of keyword matchin
 - "childhood summers" → nostalgic warm-weather songs
 
 **How it works:**
-- Dataset of ~9,000 popular songs with lyrics, metadata, and genre tags
+- Existing, expandable dataset of >8,000 popular songs with lyrics, metadata, and genre tags
 - Vector embeddings capture semantic meaning of full songs and individual sections
 - Hybrid search ranks by both overall theme and specific lyric matches
 - Genre boosting weights results by musical style
@@ -27,7 +27,7 @@ DJANGLER is a semantic search engine for song lyrics. Instead of keyword matchin
 - Local & private (all processing on your machine)
 - Section-level matching (see the exact verse/chorus that matches)
 - Genre-aware ranking
-- Fast (~100ms search on 9k songs)
+- Fast (~100ms search on >8k songs)
 
 ---
 
@@ -381,7 +381,7 @@ python scripts/validate_metadata.py metadata_distribution.json.gz
 - Metadata-only distribution
 - CLI and Python API
 - Streamlit web interface
-- Dataset expansion to ~9k songs
+- Dataset expansion to >8k songs
 
 ### Planned 📋
 - **Last.fm mood/vibe tags** (crowdsourced metadata)
@@ -406,7 +406,7 @@ python scripts/validate_metadata.py metadata_distribution.json.gz
 
 **Audio Features**: Not currently implemented (would require Spotify OAuth).
 
-**Dataset Size**: ~9k songs (~1GB embeddings). Larger datasets require more RAM.
+**Dataset Size**: ~8k songs (~0.35GB embeddings with 784 dimensions). Larger datasets require more RAM.
 
 ## License
 
